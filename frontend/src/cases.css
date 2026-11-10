@@ -1,0 +1,53 @@
+.cases-workspace { max-width: 1500px; margin: 0 auto; padding: 30px; color: #253b36; }
+.cases-workspace * { box-sizing: border-box; }
+.cases-heading { margin-bottom: 24px; }
+.cases-heading h1 { font-size: 28px; margin: 0 0 8px; }
+.cases-heading p:not(.cases-eyebrow) { color: #64736a; margin: 0; line-height: 1.7; }
+.cases-eyebrow { font-size: 12px; letter-spacing: 1px; color: #64736a; margin: 0 0 8px; }
+.cases-layout { display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.cases-panel { background: #fff; border: 1px solid #dce2d9; border-radius: 7px; padding: 22px; min-width: 0; }
+.cases-panel h2 { font-size: 18px; margin: 0; }
+.cases-panel input:not([type="checkbox"]), .cases-panel textarea { width: 100%; border: 1px solid #ccd6ca; border-radius: 4px; padding: 10px; font: inherit; color: inherit; background: #fff; }
+.cases-panel textarea { resize: vertical; line-height: 1.6; }
+.cases-panel button { font: inherit; cursor: pointer; }
+.cases-panel button:disabled { opacity: .6; cursor: default; }
+.cases-panel :focus-visible { outline: 2px solid #247d6c; outline-offset: 3px; }
+.cases-label, .case-card > label { display: block; margin: 16px 0 7px; font-size: 14px; font-weight: 600; }
+.cases-sources { border: 0; padding: 0; margin: 20px 0; min-width: 0; }
+.cases-sources legend { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.cases-sources legend span { color: #64736a; font-weight: 400; font-size: 12px; }
+.cases-source { display: flex; gap: 9px; align-items: flex-start; padding: 9px 0; font-size: 14px; overflow-wrap: anywhere; }
+.cases-source input { margin-top: 4px; }
+.cases-source small, .cases-history-item small { display: block; color: #64736a; font-size: 12px; margin-top: 4px; }
+.cases-primary { border: 1px solid #174c44; background: #174c44; color: #fff; padding: 11px 16px; border-radius: 4px; }
+.cases-input-panel > .cases-primary { width: 100%; }
+.cases-history { margin-top: 26px; border-top: 1px solid #dce2d9; padding-top: 20px; }
+.cases-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.cases-link { background: transparent; border: 0; color: #174c44; font-size: 13px !important; }
+.cases-history-item { display: block; width: 100%; text-align: left; border: 1px solid transparent; border-radius: 4px; background: transparent; padding: 10px; margin-top: 6px; overflow-wrap: anywhere; }
+.cases-history-item.active { border-color: #cbd9cc; background: #edf3ec; }
+.cases-results { display: grid; gap: 14px; }
+.cases-empty { text-align: center; padding: 90px 24px; color: #64736a; }
+.cases-empty h2 { color: #253b36; }
+.cases-empty p { line-height: 1.8; }
+.cases-badge { background: #fff3d8; color: #72541a; padding: 5px 9px; border-radius: 4px; font-size: 12px; }
+.cases-requirement { white-space: pre-wrap; line-height: 1.7; overflow-wrap: anywhere; }
+.cases-evidence { border-top: 1px solid #dce2d9; padding-top: 15px; font-size: 14px; }
+.cases-evidence summary { cursor: pointer; color: #174c44; }
+.cases-evidence article { border-left: 3px solid #d4e4d3; padding: 10px 14px; margin-top: 12px; background: #f7faf5; }
+.cases-evidence article p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; margin-bottom: 0; }
+.case-card { display: block; }
+.cases-priority { display: flex; align-items: center; gap: 8px; font-size: 14px; white-space: nowrap; }
+.cases-priority input { width: 72px !important; }
+.cases-review-issue { margin-top: 18px; padding: 12px; background: #fff8e9; border-left: 3px solid #d0a64f; font-size: 14px; line-height: 1.7; }
+.cases-review-issue p { margin: 5px 0 0; white-space: pre-wrap; }
+.cases-confirm { display: flex; align-items: flex-start; gap: 8px; line-height: 1.6; }
+.cases-confirm input { margin-top: 6px; }
+.cases-help { font-size: 12px; color: #64736a; line-height: 1.7; }
+.cases-action-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.cases-action-buttons button:not(.cases-primary) { border: 1px solid #ccd6ca; background: #fff; padding: 11px 16px; border-radius: 4px; color: #174c44; }
+.cases-alert, .cases-success, .cases-busy { padding: 12px 14px; border-radius: 4px; line-height: 1.7; }
+.cases-alert { background: #fff0eb; color: #87392c; }
+.cases-success { background: #edf5ec; color: #285e45; }
+.cases-busy { background: #eff4f2; color: #31544c; }
+@media (max-width: 760px) { .cases-workspace { padding: 18px; } .cases-layout { grid-template-columns: minmax(0, 1fr); } .cases-panel { padding: 16px; } .cases-heading h1 { font-size: 24px; } }

@@ -1,0 +1,11 @@
+backend/.venv/
+backend/data/
+**/__pycache__/
+frontend/node_modules/
+frontend/dist/
+.env
+.env.*
+!.env.example
+tasks/**/local-smoke.sqlite3*
+tasks/**/*.sqlite3*
+tasks/**/browser-profile/
