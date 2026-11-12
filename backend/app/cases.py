@@ -43,6 +43,7 @@ class GeneratedCases(BaseModel):
 
 class ConfirmedCases(GeneratedCases):
     confirmed: bool
+    base_hash: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
 
 
 class CaseRequest(BaseModel):
@@ -54,6 +55,13 @@ class ReviewIssue(BaseModel):
     case_index: int = Field(ge=0)
     description: str = Field(min_length=1, max_length=3000)
     suggestion: str = Field(min_length=1, max_length=3000)
+
+    @field_validator('description', 'suggestion')
+    @classmethod
+    def nonblank(cls, value):
+        if not value.strip():
+            raise ValueError('审查描述和建议不能为空白')
+        return value
 
 
 class Review(BaseModel):
@@ -86,6 +94,9 @@ def retrieve(path: Path, requirement: str, source_ids: list[int]) -> list[dict]:
         chunks = _chunks(connection, source_ids)
         pages = connection.execute("SELECT id,title,sections_json,source_ids_json FROM wiki_pages WHERE status='published'").fetchall()
     query = terms(requirement)
+    # Single-character queries need character tokens on both sides. Keep the
+    # existing bigram ranking for longer Chinese terms to avoid noisy matches.
+    single_characters = {term for term in query if len(term) == 1 and '\u4e00' <= term <= '\u9fff'}
     candidates = []
     for chunk in chunks:
         candidates.append({'kind': '原文', 'chunk_id': chunk['id'], 'source_id': chunk['source_id'], 'source_title': chunk['title'], 'version': chunk['version'], 'text': chunk['text']})
@@ -97,7 +108,11 @@ def retrieve(path: Path, requirement: str, source_ids: list[int]) -> list[dict]:
             originals = [{'chunk_id': c['id'], 'source_id': c['source_id'], 'source_title': c['title'], 'version': c['version'], 'text': c['text']} for chunk_id in section['chunk_ids'] if (c := allowed.get(chunk_id)) is not None]
             if len(originals) == len(section['chunk_ids']):
                 candidates.append({'kind': 'Wiki', 'wiki_title': page['title'], 'text': section['text'], 'originals': originals})
-    ranked = [(len(query & terms(item['text'])), i, item) for i, item in enumerate(candidates)]
+    ranked = []
+    for i, item in enumerate(candidates):
+        matched = query & terms(item['text'])
+        matched.update(character for character in single_characters if character in item['text'])
+        ranked.append((len(matched), i, item))
     ranked.sort(key=lambda x: (-x[0], x[1]))
     evidence = []
     budget = 12000
@@ -126,7 +141,8 @@ def _read(connection, batch_id: int) -> dict:
     review = result.pop('review_json')
     review_hash = result.pop('review_hash')
     result['review'] = json.loads(review) if review else None
-    result['review_stale'] = bool(review and review_hash != _hash(raw))
+    result['content_hash'] = _hash(_json(result['cases']))
+    result['review_stale'] = bool(review and review_hash != result['content_hash'])
     return result
 
 
@@ -170,7 +186,10 @@ def cases_router(path: Path) -> APIRouter:
         if not value.confirmed:
             raise HTTPException(422, '请先人工核对并确认。')
         with connect(path) as connection:
-            _read(connection, batch_id)
+            connection.execute('BEGIN IMMEDIATE')
+            current = _read(connection, batch_id)
+            if value.base_hash is not None and value.base_hash != current['content_hash']:
+                raise HTTPException(409, '用例已在其他页面修改，请保留当前编辑并重新读取最新批次后核对。')
             connection.execute('UPDATE case_batches SET cases_json=?,confirmed_at=? WHERE id=?', (_json([c.model_dump() for c in value.cases]), datetime.now(timezone.utc).isoformat(timespec='seconds'), batch_id))
             return _read(connection, batch_id)
 
@@ -189,7 +208,9 @@ def cases_router(path: Path) -> APIRouter:
         if any(issue.case_index >= len(batch['cases']) for issue in result.issues):
             raise HTTPException(502, '模型审查引用了不存在的用例。')
         with connect(path) as connection:
-            # Store the reviewed snapshot hash; concurrent edits automatically make it stale.
+            connection.execute('BEGIN IMMEDIATE')
+            if _read(connection, batch_id)['content_hash'] != _hash(raw):
+                raise HTTPException(409, '审查期间用例已变更，请重新审查最新内容。')
             connection.execute('UPDATE case_batches SET review_json=?,review_hash=? WHERE id=?', (_json(result.model_dump()), _hash(raw), batch_id))
             return _read(connection, batch_id)
 

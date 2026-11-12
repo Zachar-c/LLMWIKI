@@ -25,11 +25,14 @@ async function main() {
   const env = { ...process.env, PYTHONUTF8: '1', PYTHONPATH: path.join(root, 'backend/.venv/Lib/site-packages'), KNOWLEDGE_DB_PATH: path.join(temp, 'test.sqlite3') }
   // A temporary test override does not change the application's default model.
   env.GRADUATION_OPENCODE_MODEL = process.env.GRAD_TEST_MODEL || 'opencode/deepseek-v4.1-flash-free'
-  const child = spawn(python, ['-m', 'uvicorn', 'backend.app.web_opencode:app', '--host', '127.0.0.1', '--port', String(port)], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+  const chatgpt = process.env.GRAD_TEST_PROVIDER === 'chatgpt'
+  if (chatgpt) env.GRADUATION_CHATGPT_MODEL = process.env.GRAD_TEST_MODEL || 'gpt-6-luna'
+  const entry = chatgpt ? 'backend.app.web_chatgpt:app' : 'backend.app.web_opencode_fixed:app'
+  const child = spawn(python, ['-m', 'uvicorn', entry, '--host', '127.0.0.1', '--port', String(port)], { cwd: root, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
   let logs = ''
   child.stdout.on('data', data => { logs += data })
   child.stderr.on('data', data => { logs += data })
-  const report = { model: env.GRADUATION_OPENCODE_MODEL, simulated: false, status: 'incomplete', step: 'start', database: env.KNOWLEDGE_DB_PATH, port }
+  const report = { provider: chatgpt ? 'ChatGPT subscription / Codex CLI' : 'OpenCode', model: chatgpt ? env.GRADUATION_CHATGPT_MODEL : env.GRADUATION_OPENCODE_MODEL, simulated: false, status: 'incomplete', step: 'start', database: env.KNOWLEDGE_DB_PATH, port }
   let browser, page
   try {
     for (let i = 0; i < 120; i++) {
@@ -111,6 +114,15 @@ async function main() {
     report.step = 'finished'
   } catch (error) {
     report.error = String(error.message || error)
+    if (page) {
+      try {
+        await page.getByRole('alert').first().waitFor({ timeout: 3000 })
+      } catch {}
+    }
+    try {
+      report.wiki_count = (await (await fetch(`${base}/api/wiki-pages`)).json()).length
+      report.case_batch_count = (await (await fetch(`${base}/api/case-batches`)).json()).length
+    } catch {}
     process.exitCode = 1
   } finally {
     if (page) {

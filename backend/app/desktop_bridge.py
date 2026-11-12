@@ -61,6 +61,7 @@ def desktop_router(path: Path) -> APIRouter:
     @router.post('/review/{batch_id}')
     def save_review(batch_id: int, request: IncomingReview):
         with connect(path) as connection:
+            connection.execute('BEGIN IMMEDIATE')
             batch = _read(connection, batch_id)
             current_hash = _hash(_json(batch['cases']))
             if request.cases_hash != current_hash:
@@ -68,9 +69,7 @@ def desktop_router(path: Path) -> APIRouter:
             if any(issue.case_index >= len(batch['cases']) for issue in request.issues):
                 raise HTTPException(422, '审查引用了不存在的用例。')
             review = Review(issues=request.issues)
-            cursor = connection.execute('UPDATE case_batches SET review_json=?,review_hash=? WHERE id=? AND cases_json=?', (_json(review.model_dump()), current_hash, batch_id, _json(batch['cases'])))
-            if cursor.rowcount != 1:
-                raise HTTPException(409, '用例已变更，请重新获取审查内容。')
+            connection.execute('UPDATE case_batches SET review_json=?,review_hash=? WHERE id=?', (_json(review.model_dump()), current_hash, batch_id))
             return _read(connection, batch_id)
 
     @router.post('/wiki-context')

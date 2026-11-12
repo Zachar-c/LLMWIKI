@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import './cases.css'
 
 const props = defineProps({ active: Boolean })
+const emit = defineEmits(['pending-change'])
 
 const sources = ref([])
 const batches = ref([])
@@ -17,6 +18,10 @@ const error = ref('')
 const message = ref('')
 const dirty = computed(() => JSON.stringify(cases.value) !== savedCases.value)
 const reviewStale = computed(() => batch.value?.review_stale || dirty.value)
+const generationInput = () => JSON.stringify({ requirement: requirement.value, source_ids: selectedSources.value })
+const savedGenerationInput = ref(generationInput())
+const pending = computed(() => !!busy.value || dirty.value || generationInput() !== savedGenerationInput.value)
+watch(pending, value => emit('pending-change', value), { immediate: true })
 
 async function request(url, options) {
   let response
@@ -82,6 +87,7 @@ async function generate() {
       source_ids: selectedSources.value,
     }))
     showBatch(result)
+    savedGenerationInput.value = generationInput()
     message.value = '已生成用例草稿，请逐项核对后保存。'
     try { await refreshBatches() } catch { message.value += ' 历史列表刷新失败，可稍后重新加载。' }
   } catch (failure) {
@@ -124,7 +130,7 @@ async function save() {
   busy.value = '正在保存'
   try {
     const cleaned = cases.value.map(item => ({ ...item, steps: item.steps.filter(step => step.trim()) }))
-    const result = await request(`/api/case-batches/${batch.value.id}`, jsonRequest('PUT', { cases: cleaned, confirmed: true }))
+    const result = await request(`/api/case-batches/${batch.value.id}`, jsonRequest('PUT', { cases: cleaned, confirmed: true, base_hash: batch.value.content_hash }))
     showBatch(result)
     message.value = '已保存人工核对后的用例。如内容有修改，请重新进行 AI 审查。'
     try { await refreshBatches() } catch { message.value += ' 历史列表刷新失败，可稍后重新加载。' }
@@ -188,7 +194,7 @@ watch(() => props.active, active => { if (active && !busy.value) initialize() })
 
 <template>
   <section class="cases-workspace" aria-label="测试用例工作台">
-    <div class="cases-heading"><div><p class="cases-eyebrow">02 / 测试用例</p><h1>从需求生成测试用例</h1><p>选择资料作为依据，生成后请人工核对，再保存和审查。</p></div></div>
+    <div class="cases-heading"><div><h1>从需求生成测试用例</h1><p>选择资料作为依据，生成后请人工核对，再保存和审查。</p></div></div>
     <p v-if="error" class="cases-alert" role="alert">{{ error }}</p>
     <p v-if="message" class="cases-success" role="status">{{ message }}</p>
     <p v-if="busy" class="cases-busy" role="status">{{ busy }}…</p>

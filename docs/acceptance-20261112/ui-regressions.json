@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "model": "simulated",
+  "checks": [
+    "source draft survives tabs and brand, canceled refresh preserves input",
+    "saved source clears leave warning",
+    "wiki edit survives brand and canceled refresh, hidden draft remains protected",
+    "wiki conflict preserves local edit and reload enables a new save",
+    "stale wiki publish receives conflict and leaves the latest content in draft",
+    "offline wiki request restores controls and preserves inputs without saving a draft",
+    "model 503 reaches wiki error state and restores controls",
+    "case edit survives brand and canceled refresh, hidden draft remains protected",
+    "case conflict preserves local edit and reload enables a new confirmed save",
+    "busy review prevents duplicate actions and guards refresh, completion clears guard"
+  ],
+  "pageErrors": [],
+  "date": "2026-11-12",
+  "screenshot": "ui-screen.png"
+}

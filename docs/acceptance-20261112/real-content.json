@@ -1,0 +1,115 @@
+{
+  "provider": "ChatGPT subscription via Codex CLI",
+  "model": "gpt-6-luna",
+  "status": "passed",
+  "published_wiki": 1,
+  "case_count": 6,
+  "review_count": 4,
+  "review_stale": false,
+  "confirmed": true,
+  "wiki_evidence_used": true,
+  "csv_roundtrip": "passed",
+  "csv_rows": 6,
+  "cases": [
+    {
+      "title": "账号和密码均未填写时阻止登录",
+      "preconditions": "登录页面可用；账号和密码均未填写。",
+      "steps": [
+        "提交登录表单。"
+      ],
+      "expected_result": "登录不成功。具体提示内容未提供。",
+      "priority": "高"
+    },
+    {
+      "title": "未填写密码时阻止登录",
+      "preconditions": "登录页面可用；账号填写为有效账号；密码未填写。",
+      "steps": [
+        "提交登录表单。"
+      ],
+      "expected_result": "登录不成功。具体提示内容未提供。",
+      "priority": "高"
+    },
+    {
+      "title": "填写正确账号和密码后登录成功",
+      "preconditions": "登录页面可用；已知可用的正确账号和密码。",
+      "steps": [
+        "输入正确账号和密码。",
+        "提交登录表单。"
+      ],
+      "expected_result": "进入个人书架并显示昵称。",
+      "priority": "高"
+    },
+    {
+      "title": "密码错误时显示提示",
+      "preconditions": "登录页面可用；账号有效；已知与该账号不匹配的密码；尚未达到连续错误五次的限制。",
+      "steps": [
+        "输入账号和错误密码。",
+        "提交登录表单。"
+      ],
+      "expected_result": "提示“账号或密码不正确”，且登录不成功。",
+      "priority": "高"
+    },
+    {
+      "title": "连续错误五次后暂停登录",
+      "preconditions": "登录页面可用；账号有效；有可用于验证的错误密码；尚未处于暂停登录状态。",
+      "steps": [
+        "连续提交五次错误密码。"
+      ],
+      "expected_result": "登录暂停十分钟。第五次错误提交后的具体提示内容未提供。",
+      "priority": "高"
+    },
+    {
+      "title": "暂停期间使用正确密码仍不能登录",
+      "preconditions": "该账号因连续错误五次已进入十分钟暂停期；有正确账号和密码。",
+      "steps": [
+        "在暂停期内输入正确账号和密码。",
+        "提交登录表单。"
+      ],
+      "expected_result": "登录不成功，不能进入个人书架。暂停期间的具体提示内容未提供。",
+      "priority": "高"
+    }
+  ],
+  "wiki": {
+    "title": "登录测试规则",
+    "sections": [
+      {
+        "heading": "必填项与成功登录",
+        "text": "账号与密码均为必填。输入正确的账号和密码后，应进入个人书架并显示昵称。",
+        "chunk_ids": [
+          1
+        ]
+      },
+      {
+        "heading": "密码错误处理",
+        "text": "密码错误时，应提示“账号或密码不正确”。连续错误五次后暂停登录十分钟；暂停期间，即使输入正确密码也不能登录。",
+        "chunk_ids": [
+          1
+        ]
+      }
+    ]
+  },
+  "review": {
+    "issues": [
+      {
+        "case_index": 0,
+        "description": "未覆盖仅缺少账号、密码已填写的必填校验场景。",
+        "suggestion": "增加账号为空、密码已填写时提交登录的用例。"
+      },
+      {
+        "case_index": 4,
+        "description": "只验证连续错误五次后的暂停，未验证触发边界，无法确认前四次不会提前暂停；步骤也未明确每次提交均使用错误密码。",
+        "suggestion": "明确逐次提交错误密码，并检查前四次仍可尝试登录、第五次进入十分钟暂停期。"
+      },
+      {
+        "case_index": 4,
+        "description": "未验证暂停期结束后是否恢复登录，限制时长的边界覆盖不足。",
+        "suggestion": "补充暂停期结束后使用正确凭据登录成功的用例，并明确计时边界。"
+      },
+      {
+        "case_index": 5,
+        "description": "依赖暂停状态，但未说明如何确认暂停期间及剩余时长，执行时点不明确。",
+        "suggestion": "明确在第五次错误提交后、十分钟暂停期内立即执行，并记录或验证暂停状态。"
+      }
+    ]
+  }
+}

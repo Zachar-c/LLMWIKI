@@ -1,10 +1,11 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import WikiView from './WikiView.vue'
 import CasesView from './CasesView.vue'
 
 const view = ref('sources')
 const visited = reactive({ wiki: false, cases: false })
+const pendingViews = reactive({ wiki: false, cases: false })
 function showView(name) {
   view.value = name
   if (name !== 'sources') visited[name] = true
@@ -25,8 +26,15 @@ const readerTab = ref('original')
 const openChunk = ref(null)
 const form = reactive({ title: '', origin: '', version: '', content: '' })
 const charCount = computed(() => [...form.content].length)
+const pending = computed(() => saving.value || readingFile.value || Object.values(form).some(value => value.length > 0) || pendingViews.wiki || pendingViews.cases)
 let detailRequest = 0
 let listRequest = 0
+
+function protectUnsaved(event) {
+  if (!pending.value) return
+  event.preventDefault()
+  event.returnValue = ''
+}
 
 async function apiJson(url, options) {
   let response
@@ -141,12 +149,16 @@ async function saveSource() {
   }
 }
 
-onMounted(loadSources)
+onMounted(() => {
+  loadSources()
+  window.addEventListener('beforeunload', protectUnsaved)
+})
+onBeforeUnmount(() => window.removeEventListener('beforeunload', protectUnsaved))
 </script>
 
 <template>
   <header class="app-header">
-    <a class="brand" href="/" aria-label="测试知识库首页">
+    <a class="brand" href="/" aria-label="测试知识库首页" @click.prevent="showView('sources')">
       <span class="brand-mark" aria-hidden="true">知</span>
       <span>测试知识库<small>TESTING KNOWLEDGE</small></span>
     </a>
@@ -160,7 +172,7 @@ onMounted(loadSources)
 
   <main v-show="view === 'sources'">
     <div class="page-heading">
-      <div><p class="eyebrow">01 / 资料管理</p><h1>从原始资料开始</h1><p>保留来源与版本，让整理后的知识始终有据可查。</p></div>
+      <div><h1>从原始资料开始</h1><p>保留来源与版本，让整理后的知识始终有据可查。</p></div>
       <p class="scope-note">当前支持 TXT / Markdown<br />每份最多 100000 字符</p>
     </div>
 
@@ -230,7 +242,7 @@ onMounted(loadSources)
     <footer>资料库 · 原文为后续知识整理和测试用例生成提供依据。</footer>
   </main>
   <main v-show="view !== 'sources'">
-    <WikiView v-if="visited.wiki" v-show="view === 'wiki'" :active="view === 'wiki'" />
-    <CasesView v-if="visited.cases" v-show="view === 'cases'" :active="view === 'cases'" />
+    <WikiView v-if="visited.wiki" v-show="view === 'wiki'" :active="view === 'wiki'" @pending-change="pendingViews.wiki = $event" />
+    <CasesView v-if="visited.cases" v-show="view === 'cases'" :active="view === 'cases'" @pending-change="pendingViews.cases = $event" />
   </main>
 </template>

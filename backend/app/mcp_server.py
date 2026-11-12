@@ -5,6 +5,8 @@ https://github.com/modelcontextprotocol/python-sdk/tree/v1.26.0
 Run from the project root: python -m backend.app.mcp_server
 """
 
+import os
+
 import httpx
 from mcp.server.fastmcp import FastMCP
 
@@ -15,8 +17,9 @@ API_ROOT = "http://127.0.0.1:8000"
 
 def request_api(method: str, path: str, body: dict | None = None):
     # Local calls must not inherit an external HTTP proxy.
-    with httpx.Client(timeout=120.0, trust_env=False) as client:
-        response = client.request(method, API_ROOT + path, json=body)
+    api_root = os.environ.get('KNOWLEDGE_API_ROOT', API_ROOT).rstrip('/')
+    with httpx.Client(timeout=270.0, trust_env=False) as client:
+        response = client.request(method, api_root + path, json=body)
     if response.is_error:
         raise RuntimeError(f"后端 HTTP {response.status_code}: {response.text}")
     return response.json()

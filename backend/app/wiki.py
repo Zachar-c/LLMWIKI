@@ -1,3 +1,4 @@
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,6 +47,14 @@ class DraftRequest(BaseModel):
         return value.strip()
 
 
+class WikiUpdate(WikiContent):
+    base_hash: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
+
+
+class PublishRequest(BaseModel):
+    base_hash: str | None = Field(default=None, pattern=r'^[0-9a-f]{64}$')
+
+
 def initialize_wiki(path: Path) -> None:
     with connect(path) as connection:
         connection.execute("""CREATE TABLE IF NOT EXISTS wiki_pages (
@@ -62,6 +71,8 @@ def _page(connection, page_id):
     page = dict(row)
     page["sections"] = json.loads(page.pop("sections_json"))
     page["source_ids"] = json.loads(page.pop("source_ids_json"))
+    content = json.dumps({'title': page['title'], 'sections': page['sections']}, ensure_ascii=False, separators=(',', ':'))
+    page['content_hash'] = hashlib.sha256(content.encode('utf-8')).hexdigest()
     return page
 
 
@@ -124,11 +135,14 @@ def wiki_router(path: Path) -> APIRouter:
             return page
 
     @router.put("/wiki-pages/{page_id}")
-    def edit_page(page_id: int, content: WikiContent):
+    def edit_page(page_id: int, content: WikiUpdate):
         with connect(path) as connection:
+            connection.execute('BEGIN IMMEDIATE')
             page = _page(connection, page_id)
             if page["status"] != "draft":
                 raise HTTPException(409, "已发布的页面不能修改，请重新生成草稿。")
+            if content.base_hash is not None and content.base_hash != page['content_hash']:
+                raise HTTPException(409, 'Wiki 已在其他页面修改，请保留当前编辑并重新读取最新知识页后核对。')
             chunks = _chunks(connection, page["source_ids"])
             _validate_references(content, chunks)
             cursor = connection.execute("UPDATE wiki_pages SET title = ?, sections_json = ? WHERE id = ? AND status = 'draft'", (content.title, json.dumps([s.model_dump() for s in content.sections], ensure_ascii=False), page_id))
@@ -139,11 +153,14 @@ def wiki_router(path: Path) -> APIRouter:
             return page
 
     @router.post("/wiki-pages/{page_id}/publish")
-    def publish_page(page_id: int):
+    def publish_page(page_id: int, request: PublishRequest | None = None):
         with connect(path) as connection:
+            connection.execute('BEGIN IMMEDIATE')
             page = _page(connection, page_id)
             if page["status"] != "draft":
                 raise HTTPException(409, "页面已经发布。")
+            if request is not None and request.base_hash is not None and request.base_hash != page['content_hash']:
+                raise HTTPException(409, 'Wiki 已在其他页面修改，请重新读取并核对原文后发布。')
             content = WikiContent.model_validate({"title": page["title"], "sections": page["sections"]})
             chunks = _chunks(connection, page["source_ids"])
             _validate_references(content, chunks)

@@ -33,12 +33,15 @@ def parse_events(stdout: str, returncode: int) -> dict:
         if event.get('type') == 'tool_use':
             raise ModelError('模型尝试调用工具，本次结果未保存。')
         if event.get('type') == 'text' and isinstance(event.get('part'), dict):
-            texts.append(event['part'].get('text', ''))
+            value = event['part'].get('text', '')
+            if not isinstance(value, str):
+                raise ModelError('模型未返回有效的文本结果，请重试。')
+            texts.append(value)
 
     errors = [event for event in events if event.get('type') == 'error']
     detail = json.dumps(errors, ensure_ascii=False).lower()
     if 'provider.free-limit' in detail or '429' in detail:
-        raise ModelError('DeepSeek 免费模型暂时达到使用额度，请稍后重试。')
+        raise ModelError('当前模型额度或请求频率受限，请稍后重试。')
     if errors or returncode:
         raise ModelError('OpenCode 模型调用失败，请检查本机登录状态和网络。')
 

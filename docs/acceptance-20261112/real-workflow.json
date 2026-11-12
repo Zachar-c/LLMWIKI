@@ -1,0 +1,14 @@
+{
+  "provider": "ChatGPT subscription / Codex CLI",
+  "model": "gpt-6-luna",
+  "simulated": false,
+  "status": "passed",
+  "step": "finished",
+  "wiki_id": 1,
+  "batch_id": 1,
+  "case_count": 6,
+  "review_count": 4,
+  "date": "2026-11-12",
+  "screenshot": "real-screen.png",
+  "csv": "cases.csv"
+}

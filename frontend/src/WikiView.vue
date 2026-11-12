@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({ active: Boolean })
+const emit = defineEmits(['pending-change'])
 
 const sources = ref([])
 const pages = ref([])
@@ -12,11 +13,16 @@ const busy = ref(false)
 const error = ref('')
 const notice = ref('')
 const savedContent = ref('')
+const generationInput = () => JSON.stringify({ topic: topic.value, source_ids: selectedIds.value })
+const savedGenerationInput = ref(generationInput())
 const content = () => ({ title: page.value.title, sections: page.value.sections })
 const dirty = computed(() => page.value?.status === 'draft' && JSON.stringify(content()) !== savedContent.value)
+const pending = computed(() => busy.value || dirty.value || generationInput() !== savedGenerationInput.value)
+watch(pending, value => emit('pending-change', value), { immediate: true })
 
 async function request(url, options = {}) {
-  const response = await fetch(url, options)
+  let response
+  try { response = await fetch(url, options) } catch { throw new Error('无法连接服务，请检查后端是否启动。') }
   if (!response.ok) {
     const data = await response.json().catch(() => ({}))
     throw new Error(typeof data.detail === 'string' ? data.detail : '操作失败，请检查输入和服务状态。')
@@ -44,6 +50,7 @@ async function generate() {
   busy.value = true; error.value = ''; notice.value = ''
   try {
     adopt(await request('/api/wiki-drafts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ topic: topic.value, source_ids: selectedIds.value }) }))
+    savedGenerationInput.value = generationInput()
     await refresh()
     notice.value = '草稿已生成，请逐段核对原文后保存并发布。'
   } catch (e) { error.value = e.message } finally { busy.value = false }
@@ -51,7 +58,7 @@ async function generate() {
 async function save() {
   busy.value = true; error.value = ''; notice.value = ''
   try {
-    adopt(await request(`/api/wiki-pages/${page.value.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(content()) }))
+    adopt(await request(`/api/wiki-pages/${page.value.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...content(), base_hash: page.value.content_hash }) }))
     await refresh(); notice.value = '草稿已保存。'
   } catch (e) { error.value = e.message } finally { busy.value = false }
 }
@@ -59,7 +66,7 @@ async function publish() {
   if (dirty.value) { error.value = '请先保存修改，再核对原文并发布。'; return }
   busy.value = true; error.value = ''; notice.value = ''
   try {
-    adopt(await request(`/api/wiki-pages/${page.value.id}/publish`, { method: 'POST' }))
+    adopt(await request(`/api/wiki-pages/${page.value.id}/publish`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ base_hash: page.value.content_hash }) }))
     await refresh(); notice.value = '已发布。发布后页面保持不变。'
   } catch (e) { error.value = e.message } finally { busy.value = false }
 }
@@ -73,9 +80,9 @@ watch(() => props.active, active => { if (active && !busy.value) refresh() })
     <header><h1>知识 Wiki</h1><p>从选定资料生成草稿，逐段核对原文后发布。</p></header>
     <p v-if="error" class="error" role="alert">{{ error }}</p><p v-if="notice" class="notice" role="status">{{ notice }}</p>
     <div class="wiki-grid">
-      <aside><h2>整理资料</h2><label for="wiki-topic">主题</label><input id="wiki-topic" v-model="topic" maxlength="200" placeholder="例如：登录功能测试" />
+      <aside><h2>整理资料</h2><label for="wiki-topic">主题</label><input id="wiki-topic" v-model="topic" :disabled="busy" maxlength="200" placeholder="例如：登录功能测试" />
         <p>选择资料（分段合计最多 12000 字符）：</p>
-        <label v-for="source in sources" :key="source.id" class="source"><input v-model="selectedIds" type="checkbox" :value="source.id" /> {{ source.title }} · {{ source.version || '未标注版本' }}</label>
+        <label v-for="source in sources" :key="source.id" class="source"><input v-model="selectedIds" type="checkbox" :value="source.id" :disabled="busy" /> {{ source.title }} · {{ source.version || '未标注版本' }}</label>
         <p v-if="!sources.length">请先在资料库导入文本。</p><button :disabled="busy" @click="generate">{{ busy ? '处理中…' : '生成草稿' }}</button>
         <h2>知识页</h2><button v-for="item in pages" :key="item.id" class="page-button" :disabled="busy" @click="select(item.id)">{{ item.title }} · {{ item.status === 'draft' ? '草稿' : '已发布' }}</button><p v-if="!pages.length">还没有知识页。</p>
       </aside>
